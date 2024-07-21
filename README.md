@@ -15,6 +15,10 @@
 - **CSS**: For styling the components.
 - **API**: Fetch movie data from a third-party API.
 
+## Demo
+
+![Demo](demo.gif)
+
 ## Installation
 
 1. **Clone the repository**:
