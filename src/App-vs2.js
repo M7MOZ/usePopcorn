@@ -1,6 +1,5 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import StarComponent from "./StarComponent";
-import { useMovies } from "./useMovies";
 
 const key = "3b245415";
 
@@ -9,12 +8,12 @@ const average = (arr) =>
 
 export default function App() {
   const [query, setQuery] = useState("");
+  const [movies, setMovies] = useState([]);
+  const [watched, setWatched] = useState([]);
+  const [isLoding, setIsLoding] = useState(false);
+  const [error, setError] = useState("");
   const [selectedMovieId, setSelectedMovieId] = useState(null);
-  const [watched, setWatched] = useState(() => {
-    const storedWatched = localStorage.getItem("watched");
-    return storedWatched ? JSON.parse(storedWatched) : [];
-  });
-  const {movies, isLoding, error} = useMovies(query);
+
   const handleAddToWatched = (movie) => {
     let isWatched = watched.some((m) => m.imdbID === movie.imdbID);
     if (!isWatched) {
@@ -32,10 +31,44 @@ export default function App() {
   };
 
   useEffect(() => {
-    localStorage.setItem("watched", JSON.stringify(watched));
-  }, [watched]);
+    const controller = new AbortController();
 
-  
+    async function fetchMovies() {
+      try {
+        setError("");
+        setIsLoding(true);
+        const res = await fetch(
+          `http://www.omdbapi.com/?apikey=${key}&s=${query}`, // Corrected this line
+          { signal: controller.signal } // Moved this to be a separate argument
+        );
+        if (!res.ok) {
+          throw new Error("Network response was not ok");
+        }
+        const data = await res.json();
+        if (data.Response === "False") {
+          throw new Error("No movies found!");
+        }
+        setMovies(data.Search);
+        setError("");
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          setError(err.message);
+        }
+      } finally {
+        setIsLoding(false);
+      }
+    }
+    if (query.length < 2) {
+      setError("");
+      setMovies([]);
+      return;
+    }
+    fetchMovies();
+
+    return () => {
+      controller.abort();
+    };
+  }, [query]);
   return (
     <>
       <NavBar>
@@ -103,20 +136,6 @@ const Logo = () => {
 };
 
 const SearchBar = ({ query, onChange }) => {
-  const inputEl = useRef(null);
-  useEffect(() => {
-    const callBack = (e) => {
-      if(document.activeElement === inputEl.current) return;
-      if(e.code === "Enter"){
-        inputEl.current.focus();
-        onChange("");
-      }
-    }
-    document.addEventListener('keydown', callBack);
-    return () => {
-      document.removeEventListener('keydown', callBack);
-    }
-  }, [onChange]);
   return (
     <input
       className="search"
@@ -124,7 +143,6 @@ const SearchBar = ({ query, onChange }) => {
       placeholder="Search movies..."
       value={query}
       onChange={(e) => onChange(e.target.value)}
-      ref={inputEl}
     />
   );
 };
@@ -208,10 +226,11 @@ const MovieDetails = ({ id, onClose, onAdd, watched }) => {
       if (element.imdbID === id) {
         setUserRating(element.userRating);
         setIsWatched(true);
-        found = true;
+        found = true; // Set flag to true if movie is found
       }
     });
     if (!found) {
+      // If the movie is not found in the watched list, reset the states
       setUserRating(0);
       setIsWatched(false);
     }
