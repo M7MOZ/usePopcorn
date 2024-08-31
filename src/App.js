@@ -1,3 +1,4 @@
+//this app is an old app of mine that I was proud of as a beginner, it needs a lot of improvements like moving every component into it's own file and changing the legacy fetching way, stay tuned for these updates
 import { useEffect, useState, useRef } from "react";
 import StarComponent from "./StarComponent";
 import { useMovies } from "./useMovies";
